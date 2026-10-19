@@ -1,0 +1,20 @@
+# Sobe o servidor de DNS (AdGuard Home) para desenvolvimento.
+#   docker compose up -d
+# Painel em http://localhost:3001 (defina usuário/senha no primeiro acesso).
+# DNS em :53 (UDP/TCP), DNS-over-TLS em :853, DNS-over-HTTPS em :443.
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: alianca-dns
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "853:853/tcp"     # DNS-over-TLS (o app Android usa este, com o client id)
+      - "443:443/tcp"     # DNS-over-HTTPS
+      - "3001:3000/tcp"   # painel de administração
+    volumes:
+      - ./adguard-work:/opt/adguardhome/work
+      - ./adguard-conf:/opt/adguardhome/conf
+      # para TLS real, monte aqui o certificado do domínio dns.aliancaapp.com.br
+      # - ./certs:/certs:ro

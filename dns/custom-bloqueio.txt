@@ -1,0 +1,30 @@
+! Lista de bloqueio própria do Aliança — regras no formato Adblock.
+! Além das listas grandes (ver blocklists.md), estas fecham as fugas comuns.
+
+! --- DNS seguro de navegadores (a fuga nº 1) ---
+! Chrome/Edge/Brave e apps que usam DoH público para escapar do filtro.
+||dns.google^
+||dns.google.com^
+||cloudflare-dns.com^
+||mozilla.cloudflare-dns.com^
+||dns.quad9.net^
+||doh.opendns.com^
+||dns.nextdns.io^
+||doh.cleanbrowsing.org^
+||dns.adguard-dns.com^
+
+! --- Domínio canário do Firefox ---
+! Responder NXDOMAIN aqui faz o Firefox DESLIGAR o DoH automático e respeitar o
+! DNS do sistema. No AdGuard Home isto já vem tratado; a regra reforça.
+||use-application-dns.net^
+
+! --- VPNs/proxies populares (fecham o contorno por VPN) ---
+! Mantido curto de propósito; a lista HaGeZi "doh-vpn-proxy-bypass" cobre o resto.
+||nordvpn.com^
+||expressvpn.com^
+||protonvpn.com^
+||surfshark.com^
+
+! --- Exemplos de domínios adultos (apenas estrutura; as listas grandes cobrem milhares) ---
+! ||exemplo-adulto-1.com^
+! ||exemplo-adulto-2.com^
