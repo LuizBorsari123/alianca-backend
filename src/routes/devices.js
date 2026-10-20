@@ -79,7 +79,37 @@ export function mountDevices(app) {
     res.json({ ok: true });
   });
 
-  // >>> Ponto que o APP chama periodicamente: "estou instalado e o filtro está ativo".
+  // >>> Ponto que o APP chama com o TOKEN do usuário (Bearer): informa se a
+  // proteção está ligada. Se passar de ligada -> desligada, avisa o guardião.
+  app.post('/app/heartbeat', exigeAuth, (req, res) => {
+    const user = db.getUser(req.userId);
+    if (!user?.householdId) return res.status(400).json({ erro: 'Sem família.' });
+    const protegido = !!(req.body && req.body.protegido);
+    const agora = new Date().toISOString();
+    let device = db.devicesOf(user.householdId).find(d => d.donoId === user.id);
+    if (!device) {
+      device = db.devices.create({
+        householdId: user.householdId, donoId: user.id,
+        nome: `Aparelho de ${user.nome}`, plataforma: 'android',
+        dnsId: db.dnsId(), ultimoDnsSinal: null, ultimoAppSinal: null,
+      });
+    }
+    const antes = device.protegidoApp;
+    db.devices.update(device.id, { ultimoAppSinal: agora, protegidoApp: protegido });
+    if (antes === true && protegido === false) {
+      db.events.create({
+        householdId: user.householdId, deviceId: device.id, tipo: 'protecao_off',
+        titulo: 'Proteção desativada', corpo: `${user.nome} desativou a proteção.`, ts: agora,
+      });
+      notificaGuardiao(user.householdId, {
+        tipo: 'protecao_off', titulo: 'Proteção desativada',
+        corpo: `${user.nome} desativou a proteção há pouco. Que tal conversar com carinho?`,
+      });
+    }
+    res.json({ ok: true });
+  });
+
+  // >>> Ponto que o SERVIDOR DE DNS chama periodicamente (segredo de serviço).
   app.post('/devices/:id/app-heartbeat', exigeServico, (req, res) => {
     const device = db.devices.get(req.params.id);
     if (!device) return res.status(404).json({ erro: 'Aparelho não encontrado.' });
