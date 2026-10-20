@@ -30,7 +30,7 @@ cd "$APP_DIR"
 npm install --omit=dev
 
 echo ">> 3/6 Emitindo o certificado para $API_HOST..."
-if [ ! -d "/etc/letsencrypt/live/$API_HOST" ]; then
+if ! sudo test -d "/etc/letsencrypt/live/$API_HOST"; then
   sudo certbot certonly --standalone -d "$API_HOST" \
     --agree-tos --no-eff-email -m "$EMAIL" \
     --pre-hook  "docker compose -f $ADGUARD_COMPOSE stop" \
