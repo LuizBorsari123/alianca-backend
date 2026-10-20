@@ -50,3 +50,31 @@ export async function pixDaAssinatura(subscriptionId) {
   const qr = await asaas(`/payments/${primeiro.id}/pixQrCode`);
   return { paymentId: primeiro.id, invoiceUrl: primeiro.invoiceUrl, pix: { payload: qr.payload, imagemBase64: qr.encodedImage, expira: qr.expirationDate } };
 }
+
+// 4) invoiceUrl da primeira cobrança — página segura do Asaas onde o cliente
+//    digita o cartão (nós nunca tocamos nos dados do cartão).
+export async function faturaDaAssinatura(subscriptionId) {
+  const pagamentos = await asaas(`/subscriptions/${subscriptionId}/payments`);
+  const primeiro = pagamentos?.data?.[0];
+  return primeiro ? { paymentId: primeiro.id, invoiceUrl: primeiro.invoiceUrl } : null;
+}
+
+// 5) Pix Automático — cria a autorização recorrente. O cliente autoriza uma vez
+//    (paga o QR imediato) e, a partir daí, o Asaas debita sozinho todo mês.
+export function criarAutorizacaoPixAutomatico({ customerId, valor, descricao, contractId }) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const desc = String(descricao || 'Aliança').slice(0, 35);
+  return asaas('/pix/automatic/authorizations', {
+    method: 'POST',
+    body: {
+      customerId,
+      frequency: 'MONTHLY',
+      contractId: String(contractId).slice(0, 35),
+      startDate: hoje,
+      paymentCreationMode: 'SUBSCRIPTION',
+      value: valor,
+      description: desc,
+      immediateQrCode: { value: valor, description: desc },
+    },
+  });
+}

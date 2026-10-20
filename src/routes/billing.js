@@ -3,7 +3,7 @@ import { db } from '../db.js';
 import { exigeAuth } from '../auth.js';
 import { exigeServico, ASAAS_WEBHOOK_TOKEN } from '../config.js';
 import { notificaGuardiao } from '../notify.js';
-import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura } from '../asaas.js';
+import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura, faturaDaAssinatura, criarAutorizacaoPixAutomatico } from '../asaas.js';
 
 const PLANOS = {
   mensal: { preco: 2990, reais: 29.90, ciclo: 'MONTHLY', periodoDias: 30, rotulo: 'Mensal' },
@@ -54,7 +54,40 @@ export function mountBilling(app) {
       const assinatura = await criarAssinatura({ customerId, valor: p.reais, ciclo: p.ciclo, billingType, householdId: user.householdId });
       db.subscriptions.update(sub.id, { plano, asaasCustomerId: customerId, asaasSubscriptionId: assinatura.id, estado: 'pendente' });
       const pix = billingType === 'PIX' ? await pixDaAssinatura(assinatura.id) : null;
-      res.status(201).json({ ok: true, assinaturaId: assinatura.id, pix });
+      // Cartão: devolve o invoiceUrl (página segura do Asaas para digitar o cartão;
+      // o Asaas guarda o cartão e cobra sozinho todo mês).
+      const checkout = billingType === 'CREDIT_CARD' ? await faturaDaAssinatura(assinatura.id) : null;
+      res.status(201).json({ ok: true, assinaturaId: assinatura.id, pix, checkout });
+    } catch (e) {
+      res.status(502).json({ erro: 'Falha ao falar com o Asaas.', detalhe: String(e.message) });
+    }
+  });
+
+  // Pix Automático: cria a autorização recorrente. O app mostra o QR; o cliente
+  // paga/autoriza uma vez e o Asaas passa a debitar sozinho todo mês.
+  app.post('/billing/pix-automatico', exigeAuth, async (req, res) => {
+    if (!asaasConfigurado()) return res.status(503).json({ erro: 'Asaas não configurado. Defina ASAAS_API_KEY no servidor.' });
+    const { cpfCnpj, telefone, plano = 'mensal' } = req.body || {};
+    if (!cpfCnpj) return res.status(400).json({ erro: 'Informe o CPF/CNPJ do pagador.' });
+    const p = PLANOS[plano] || PLANOS.mensal;
+    const user = db.getUser(req.userId);
+    const sub = db.subscriptionOf(user.householdId);
+    if (!sub) return res.status(404).json({ erro: 'Sem assinatura.' });
+    try {
+      let customerId = sub.asaasCustomerId;
+      if (!customerId) {
+        const cli = await criarCliente({ nome: user.nome, email: user.email, cpfCnpj, telefone });
+        customerId = cli.id;
+      }
+      const aut = await criarAutorizacaoPixAutomatico({
+        customerId, valor: p.reais, descricao: 'Alianca protecao', contractId: user.householdId,
+      });
+      db.subscriptions.update(sub.id, { plano, asaasCustomerId: customerId, pixAutomaticoId: aut.id, estado: 'pendente' });
+      // Extrai o QR de forma tolerante (o nome exato do campo pode variar).
+      const q = aut.immediateQrCode || aut.qrCode || aut.pix || {};
+      const payload = q.payload || q.copyPaste || aut.payload || '';
+      const imagem = q.encodedImage || q.imagemBase64 || q.qrCodeImage || aut.encodedImage || '';
+      res.status(201).json({ ok: true, autorizacaoId: aut.id, pix: { payload, imagemBase64: imagem }, raw: aut });
     } catch (e) {
       res.status(502).json({ erro: 'Falha ao falar com o Asaas.', detalhe: String(e.message) });
     }
