@@ -6,7 +6,7 @@ import { notificaGuardiao } from '../notify.js';
 import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura, faturaDaAssinatura, criarAutorizacaoPixAutomatico } from '../asaas.js';
 
 const PLANOS = {
-  mensal: { preco: 2990, reais: 29.90, ciclo: 'MONTHLY', periodoDias: 30, rotulo: 'Mensal' },
+  mensal: { preco: 990, reais: 9.90, ciclo: 'MONTHLY', periodoDias: 30, rotulo: 'Mensal' },
   anual: { preco: 26900, reais: 269.00, ciclo: 'YEARLY', periodoDias: 365, rotulo: 'Anual' },
 };
 
