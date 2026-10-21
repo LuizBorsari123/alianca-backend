@@ -109,6 +109,17 @@ export function mountDevices(app) {
     res.json({ ok: true });
   });
 
+  // Registra o token de push (FCM) do aparelho do usuário — usado quando o
+  // push instantâneo (Firebase) estiver configurado.
+  app.post('/app/push-token', exigeAuth, (req, res) => {
+    const { fcmToken } = req.body || {};
+    const user = db.getUser(req.userId);
+    if (!user) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    if (!fcmToken) return res.status(400).json({ erro: 'Token ausente.' });
+    db.updateUser(user.id, { fcmToken });
+    res.json({ ok: true });
+  });
+
   // >>> Ponto que o SERVIDOR DE DNS chama periodicamente (segredo de serviço).
   app.post('/devices/:id/app-heartbeat', exigeServico, (req, res) => {
     const device = db.devices.get(req.params.id);
