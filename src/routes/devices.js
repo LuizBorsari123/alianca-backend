@@ -79,6 +79,24 @@ export function mountDevices(app) {
     res.json({ ok: true });
   });
 
+  // >>> Ponte DNS em nível de FAMÍLIA (quando não há DNS por-dispositivo).
+  // A ponte lê o AdGuard e, ao ver um bloqueio de conteúdo adulto, chama aqui
+  // com o householdId configurado. Avisa o guardião só com categoria + horário.
+  app.post('/dns/bloqueio-familia', exigeServico, (req, res) => {
+    const { householdId, categoria = 'conteúdo adulto', ts } = req.body || {};
+    if (!householdId) return res.status(400).json({ erro: 'Informe o householdId.' });
+    const agora = ts || new Date().toISOString();
+    db.events.create({
+      householdId, tipo: 'tentativa', titulo: 'Tentativa bloqueada',
+      corpo: `${categoria} · ${new Date(agora).toLocaleTimeString('pt-BR')}`, ts: agora,
+    });
+    notificaGuardiao(householdId, {
+      tipo: 'tentativa', titulo: 'Tentativa bloqueada',
+      corpo: `${categoria} · ${new Date(agora).toLocaleTimeString('pt-BR')}`,
+    });
+    res.json({ ok: true });
+  });
+
   // >>> Ponto que o APP chama com o TOKEN do usuário (Bearer): informa se a
   // proteção está ligada. Se passar de ligada -> desligada, avisa o guardião.
   app.post('/app/heartbeat', exigeAuth, (req, res) => {
