@@ -79,6 +79,14 @@ export function mountDevices(app) {
     res.json({ ok: true });
   });
 
+  // App registra o token de push (FCM) do aparelho do usuário.
+  app.post('/app/push-token', exigeAuth, (req, res) => {
+    const { fcmToken } = req.body || {};
+    if (!fcmToken) return res.status(400).json({ erro: 'Sem token.' });
+    db.updateUser(req.userId, { fcmToken });
+    res.json({ ok: true });
+  });
+
   // >>> Ponte DNS em nível de FAMÍLIA (quando não há DNS por-dispositivo).
   // A ponte lê o AdGuard e, ao ver um bloqueio de conteúdo adulto, chama aqui
   // com o householdId configurado. Avisa o guardião só com categoria + horário.

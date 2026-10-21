@@ -4,6 +4,7 @@
 // GET /messages (push pode somar depois, só como "toque" no celular).
 
 import { db } from './db.js';
+import { enviarPush } from './push.js';
 
 export function notificaUsuario(userId, { tipo, titulo, corpo }) {
   if (!userId) return null;
@@ -11,6 +12,9 @@ export function notificaUsuario(userId, { tipo, titulo, corpo }) {
     paraUsuarioId: userId, tipo, titulo, corpo,
     lida: false, ts: new Date().toISOString(),
   });
+  // push no celular (se o usuário tiver token e o Firebase estiver configurado)
+  const user = db.getUser(userId);
+  if (user?.fcmToken) enviarPush(user.fcmToken, titulo, corpo);
   console.log(`  [MSG in-app → ${userId}] ${titulo} — ${corpo}`);
   return msg;
 }

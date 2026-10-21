@@ -16,6 +16,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.22.3",
+    "firebase-admin": "^12.7.0",
     "jsonwebtoken": "^9.0.3"
   }
 }
