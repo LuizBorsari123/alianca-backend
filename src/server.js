@@ -1,5 +1,7 @@
 // Aliança — Backend (o cérebro). Partes 1 a 5.
 import express from 'express';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { db } from './db.js';
 import { hash, verificaSenha, geraToken, exigeAuth } from './auth.js';
 import { mountDevices } from './routes/devices.js';
@@ -13,9 +15,13 @@ export function criaApp() {
   const app = express();
   app.use(express.json());
 
+  // Serve o PWA (app web do iPhone) a partir da pasta web/ — mesmo domínio, sem CORS.
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  app.use(express.static(join(__dirname, '..', 'web')));
+
   const publico = u => u && ({ id: u.id, nome: u.nome, email: u.email, genero: u.genero, papel: u.papel, householdId: u.householdId, status: u.status });
 
-  app.get('/', (_req, res) => res.json({ app: 'Aliança', partes: '1–5', ok: true }));
+  app.get('/health', (_req, res) => res.json({ app: 'Aliança', partes: '1–5', ok: true }));
 
   // ---- Cadastro do titular: cria usuário, família, assinatura e inicia a caminhada ----
   app.post('/auth/signup', (req, res) => {
