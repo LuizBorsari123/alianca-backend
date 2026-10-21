@@ -106,6 +106,16 @@ export function criaApp() {
     res.json({ ok: true, aviso: 'PIN de proteção salvo. A partir de agora, só o suporte reseta esse PIN.' });
   });
 
+  // Verifica o PIN do guardião — usado para liberar a DESATIVAÇÃO da proteção.
+  app.post('/household/verificar-pin', exigeAuth, (req, res) => {
+    const { pin } = req.body || {};
+    const user = db.getUser(req.userId);
+    if (!user?.householdId) return res.status(400).json({ erro: 'Sem família.' });
+    const h = db.getHousehold(user.householdId);
+    if (!h?.pinHash) return res.json({ ok: true, semPin: true }); // sem PIN definido ainda
+    res.json({ ok: verificaSenha(pin, h.pinHash) });
+  });
+
   // Dependentes (filhos): membros gerenciados pelos pais, sem login próprio.
   // O aparelho do dependente é provisionado em /devices com donoId = id dele.
   const publicoDep = u => ({ id: u.id, nome: u.nome, idade: u.idade ?? null, papel: u.papel, status: u.status });
