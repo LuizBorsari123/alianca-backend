@@ -312,12 +312,40 @@ async function telaPerfil(){
     <button data-t="claro" aria-pressed="${S.tema==='claro'}">Claro</button>
     <button data-t="escuro" aria-pressed="${S.tema==='escuro'}">Escuro</button></div></div>
   <div class="card"><span class="label">Assinatura</span><div class="row"><strong>${({ativa:'Proteção garantida',pendente:'Aguardando pagamento',vencida:'Pagamento em atraso',cancelada:'Cancelada'})[estado]||'—'}</strong><span class="pill ${estado==='ativa'?'ok':'wait'}">${estado==='ativa'?'Ativa':'Pendente'}</span></div></div>`;
+  h+=cartaoAvisosHTML();
   if(!temPin){ h+=`<div class="card"><span class="label">PIN de proteção</span><p class="ink">Defina um PIN de 4 dígitos (idealmente o cônjuge digita). Depois, só com ele se sai da conta.</p><div class="field"><input id="pin" inputmode="numeric" maxlength="4" placeholder="••••"></div><button class="btn accent" onclick="salvarPin()">Salvar PIN</button></div>`; }
   h+=`<div class="card"><div class="item" onclick="nav('jornada')"><div><strong>Dias firmes</strong><small>Sua caminhada e marcos</small></div><span class="chev">›</span></div></div>`;
   h+=`<div class="card"><span class="label">Sair da conta</span><p class="ink">Sair exige o PIN do cônjuge.</p><div class="field"><input id="lo" inputmode="numeric" maxlength="4" placeholder="PIN do cônjuge"></div><button class="btn danger" onclick="sair()">Sair da conta</button></div>`;
   h+=`<button class="back" onclick="nav('home')">‹ Voltar</button>`;
   app.innerHTML=h;
   document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.tema=b.dataset.t;applyTheme();telaPerfil();});
+  const bn=document.getElementById('btnAtivarNotif'); if(bn) bn.onclick=async()=>{ bn.textContent='Ativando…'; await ativarNotificacoes(true); telaPerfil(); };
+}
+function ehIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+// Cartão de avisos do Perfil — mostra o estado atual e o passo certo pra ativar.
+function cartaoAvisosHTML(){
+  const L='<div class="card"><span class="label">Avisos no celular</span>';
+  if(!suportaPush()){
+    return L+`<p class="ink">Seu navegador não suporta avisos. No iPhone, use o Safari e adicione o app à Tela de Início.</p></div>`;
+  }
+  const perm=Notification.permission;
+  if(perm==='granted'){
+    return L+`<div class="row"><strong>Avisos ativados</strong><span class="pill ok">Ativo</span></div>
+      <p class="ink">Você recebe quando a proteção mudar, mesmo com o app fechado.</p></div>`;
+  }
+  if(ehIOS() && !ehStandalone()){
+    return L+`<p class="ink">Para receber avisos no iPhone, primeiro instale o app:</p>
+      <p class="ink">1. Toque em <b>Compartilhar</b> (ícone de quadrado com seta).<br>2. Escolha <b>"Adicionar à Tela de Início"</b>.<br>3. Abra o Aliança pelo <b>ícone na tela</b> e volte aqui para ativar.</p></div>`;
+  }
+  if(perm==='denied'){
+    const passo = ehIOS()
+      ? 'Abra os <b>Ajustes</b> do iPhone → role até <b>Aliança</b> → <b>Notificações</b> → ative <b>Permitir Notificações</b>.'
+      : 'Abra as configurações do site no navegador e permita as notificações.';
+    return L+`<div class="row"><strong>Avisos bloqueados</strong><span class="pill wait">Desligado</span></div>
+      <p class="ink">${passo}</p></div>`;
+  }
+  return L+`<p class="ink">Ative para ser avisado quando a proteção mudar — mesmo com o app fechado.</p>
+    <button class="btn accent" id="btnAtivarNotif">Ativar avisos</button></div>`;
 }
 async function salvarPin(){ const r=await api('/household/pin',{method:'POST',body:{pin:val('pin')}}); if(r.ok) telaPerfil(); else alert(r.erro); }
 async function sair(){ const r=await api('/auth/logout',{method:'POST',body:{pin:val('lo')}}); if(r.ok){ S.token=null; tela='home'; render(); } else alert(r.erro); }
