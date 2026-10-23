@@ -5,6 +5,7 @@
 
 import { db } from './db.js';
 import { enviarPush } from './push.js';
+import { enviarWebPush } from './webpush.js';
 
 export function notificaUsuario(userId, { tipo, titulo, corpo }) {
   if (!userId) return null;
@@ -12,9 +13,23 @@ export function notificaUsuario(userId, { tipo, titulo, corpo }) {
     paraUsuarioId: userId, tipo, titulo, corpo,
     lida: false, ts: new Date().toISOString(),
   });
-  // push no celular (se o usuário tiver token e o Firebase estiver configurado)
   const user = db.getUser(userId);
+  // 1) push no app Android nativo (Firebase), se houver token
   if (user?.fcmToken) enviarPush(user.fcmToken, titulo, corpo);
+  // 2) push no PWA (iPhone/navegador) — para cada inscrição salva.
+  //    Inscrições que o aparelho cancelou (404/410) são removidas.
+  const inscricoes = Array.isArray(user?.webPushSubs) ? user.webPushSubs : [];
+  if (inscricoes.length) {
+    Promise.allSettled(
+      inscricoes.map(sub => enviarWebPush(sub, titulo, corpo, { tipo }))
+    ).then(resultados => {
+      const vivas = inscricoes.filter((_, i) => {
+        const r = resultados[i];
+        return !(r.status === 'rejected' && r.reason?.inscricaoMorta);
+      });
+      if (vivas.length !== inscricoes.length) db.updateUser(userId, { webPushSubs: vivas });
+    }).catch(() => {});
+  }
   console.log(`  [MSG in-app → ${userId}] ${titulo} — ${corpo}`);
   return msg;
 }

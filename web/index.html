@@ -329,7 +329,8 @@ function showErr(m){const e=document.getElementById('err');if(e){e.textContent=m
 
 function render(){
   applyTheme();
-  if(!S.token){ telaLogin(); return; }
+  if(typeof avaliaNotif==='function') setTimeout(avaliaNotif,300);
+  if(!S.token){ const b=document.getElementById('notifBanner'); if(b) b.remove(); telaLogin(); return; }
   if(tela==='avisos') return telaAvisos();
   if(tela==='jornada') return telaJornada();
   if(tela==='convite') return telaConvite();
@@ -343,6 +344,55 @@ if(!window.navigator.standalone && /iphone|ipad|ipod/i.test(navigator.userAgent)
   setTimeout(()=>{document.getElementById('install').style.display='block';},1500);
 }
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+
+// ---------- Notificações (Web Push) ----------
+// No iPhone só funciona com o app ADICIONADO À TELA DE INÍCIO (iOS 16.4+).
+function ehStandalone(){ return window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; }
+function suportaPush(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function b64ToUint8(base64){
+  const pad='='.repeat((4-base64.length%4)%4);
+  const b=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(b); const arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function ativarNotificacoes(pedirPermissao){
+  if(!suportaPush() || !S.token) return false;
+  try{
+    let perm=Notification.permission;
+    if(perm==='default' && pedirPermissao) perm=await Notification.requestPermission();
+    if(perm!=='granted') return false;
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      const r=await api('/app/web-push/chave',{auth:false});
+      if(!r.ok || !r.data.chave) return false;
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToUint8(r.data.chave)});
+    }
+    await api('/app/web-push/inscrever',{method:'POST',body:{inscricao:sub.toJSON()}});
+    const b=document.getElementById('notifBanner'); if(b) b.remove();
+    return true;
+  }catch(e){ return false; }
+}
+// Mostra um banner só quando faz sentido: app instalado, com login, sem permissão ainda.
+function avaliaNotif(){
+  if(!S.token || !suportaPush()) return;
+  if(Notification.permission==='granted'){ ativarNotificacoes(false); return; } // reinscreve em silêncio
+  if(Notification.permission!=='default') return; // negado: não insiste
+  if(!ehStandalone()) return; // no Safari (aba) o iPhone não entrega push
+  if(document.getElementById('notifBanner')) return;
+  const el=document.createElement('div');
+  el.id='notifBanner';
+  el.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:50;background:var(--card,#123c2e);color:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-family:system-ui';
+  el.innerHTML='<div style="flex:1;line-height:1.3"><b>Ativar avisos</b><br><span style="opacity:.85;font-size:13px">Receba quando a proteção mudar, mesmo com o app fechado.</span></div>';
+  const btn=document.createElement('button');
+  btn.textContent='Ativar';
+  btn.style.cssText='background:#fff;color:#123c2e;border:0;border-radius:12px;padding:10px 16px;font-weight:700';
+  btn.onclick=()=>ativarNotificacoes(true);
+  el.appendChild(btn);
+  document.body.appendChild(el);
+}
+setTimeout(avaliaNotif, 2000);
 </script>
 </body>
 </html>

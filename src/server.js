@@ -10,6 +10,7 @@ import { mountLifecycle } from './routes/lifecycle.js';
 import { mountBilling } from './routes/billing.js';
 import { mountMessages } from './routes/messages.js';
 import { mountConvite } from './routes/convite.js';
+import { VAPID_PUBLIC } from './webpush.js';
 
 export function criaApp() {
   const app = express();
@@ -120,6 +121,33 @@ export function criaApp() {
     const h = db.getHousehold(user.householdId);
     if (!h?.pinHash) return res.json({ ok: true, semPin: true }); // sem PIN definido ainda
     res.json({ ok: verificaSenha(pin, h.pinHash) });
+  });
+
+  // ---- Web Push do PWA (iPhone/navegador) ----
+  // O PWA pega a chave pública para se inscrever no serviço de push do aparelho.
+  app.get('/app/web-push/chave', (_req, res) => res.json({ chave: VAPID_PUBLIC }));
+
+  // O PWA envia a inscrição (endpoint + chaves do aparelho). Guardamos uma lista
+  // por usuário (ele pode ter iPhone + outro aparelho). Dedupe por endpoint.
+  app.post('/app/web-push/inscrever', exigeAuth, (req, res) => {
+    const sub = req.body?.inscricao || req.body;
+    if (!sub || !sub.endpoint) return res.status(400).json({ erro: 'Inscrição inválida.' });
+    const user = db.getUser(req.userId);
+    if (!user) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    const atuais = Array.isArray(user.webPushSubs) ? user.webPushSubs : [];
+    const semDuplicata = atuais.filter(s => s.endpoint !== sub.endpoint);
+    db.updateUser(user.id, { webPushSubs: [...semDuplicata, sub] });
+    res.json({ ok: true });
+  });
+
+  // O PWA cancela a inscrição (ao sair ou desativar notificações).
+  app.post('/app/web-push/cancelar', exigeAuth, (req, res) => {
+    const endpoint = req.body?.endpoint;
+    const user = db.getUser(req.userId);
+    if (!user) return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    const atuais = Array.isArray(user.webPushSubs) ? user.webPushSubs : [];
+    db.updateUser(user.id, { webPushSubs: atuais.filter(s => s.endpoint !== endpoint) });
+    res.json({ ok: true });
   });
 
   // Dependentes (filhos): membros gerenciados pelos pais, sem login próprio.
