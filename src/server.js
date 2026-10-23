@@ -24,6 +24,9 @@ export function criaApp() {
 
   app.get('/health', (_req, res) => res.json({ app: 'Aliança', partes: '1–5', ok: true }));
 
+  // Landing page pública (o anúncio aponta pra cá). O app em si fica em '/'.
+  app.get(['/comecar', '/lp'], (_req, res) => res.sendFile(join(__dirname, '..', 'web', 'comecar.html')));
+
   // Perfil de DNS para iPhone — precisa do content-type certo para o Safari
   // oferecer "Instalar" em vez de baixar um arquivo solto.
   app.get('/perfil-dns.mobileconfig', (_req, res) => {
