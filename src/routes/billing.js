@@ -7,7 +7,6 @@ import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura, fatur
 
 const PLANOS = {
   mensal: { preco: 990, reais: 9.90, ciclo: 'MONTHLY', periodoDias: 30, rotulo: 'Mensal' },
-  anual: { preco: 26900, reais: 269.00, ciclo: 'YEARLY', periodoDias: 365, rotulo: 'Anual' },
 };
 
 export function mountBilling(app) {
@@ -78,9 +77,10 @@ export function mountBilling(app) {
   // ou a tokenização do Asaas (ver guia de configuração).
   app.post('/billing/assinar', exigeAuth, async (req, res) => {
     if (!asaasConfigurado()) return res.status(503).json({ erro: 'Asaas não configurado. Defina ASAAS_API_KEY no servidor.' });
-    const { cpfCnpj, telefone, plano = 'anual', billingType = 'PIX' } = req.body || {};
+    const { cpfCnpj, telefone, billingType = 'PIX' } = req.body || {};
     if (!cpfCnpj) return res.status(400).json({ erro: 'Informe o CPF/CNPJ do pagador.' });
-    const p = PLANOS[plano] || PLANOS.anual;
+    const plano = 'mensal';
+    const p = PLANOS.mensal;
     const user = db.getUser(req.userId);
     const sub = db.subscriptionOf(user.householdId);
     if (!sub) return res.status(404).json({ erro: 'Sem assinatura.' });

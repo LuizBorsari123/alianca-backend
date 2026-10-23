@@ -40,7 +40,7 @@ export function criaApp() {
 
   // ---- Cadastro do titular: cria usuário, família, assinatura e inicia a caminhada ----
   app.post('/auth/signup', (req, res) => {
-    const { nome, email, senha, genero, plano } = req.body || {};
+    const { nome, email, senha, genero } = req.body || {};
     if (!nome || !email || !senha) return res.status(400).json({ erro: 'Informe nome, e-mail e senha.' });
     if (String(senha).length < 6) return res.status(400).json({ erro: 'A senha precisa de pelo menos 6 caracteres.' });
     if (db.findUserByEmail(email)) return res.status(409).json({ erro: 'Já existe uma conta com esse e-mail.' });
@@ -54,7 +54,7 @@ export function criaApp() {
     db.updateHousehold(household.id, { donoId: user.id });
     db.subscriptions.create({
       householdId: household.id,
-      plano: ['mensal', 'anual'].includes(plano) ? plano : 'anual',
+      plano: 'mensal',
       estado: 'ativa', vigenteAte: null, cancelamento: null, asaasCustomerId: null,
     });
 
