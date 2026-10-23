@@ -26,6 +26,9 @@ export function criaApp() {
 
   // Landing page pública (o anúncio aponta pra cá). O app em si fica em '/'.
   app.get(['/comecar', '/lp'], (_req, res) => res.sendFile(join(__dirname, '..', 'web', 'comecar.html')));
+  // Páginas legais (exigidas pela Play Store e pela App Store).
+  app.get('/privacidade', (_req, res) => res.sendFile(join(__dirname, '..', 'web', 'privacidade.html')));
+  app.get('/termos', (_req, res) => res.sendFile(join(__dirname, '..', 'web', 'termos.html')));
 
   // Perfil de DNS para iPhone — precisa do content-type certo para o Safari
   // oferecer "Instalar" em vez de baixar um arquivo solto.
