@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>com.apple.dnsSettings.managed</string>
+      <key>PayloadIdentifier</key>
+      <string>app.alianca.dns</string>
+      <key>PayloadUUID</key>
+      <string>dbcee184-9d30-40c6-905a-2ae4a4c0a8e8</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>PayloadDisplayName</key>
+      <string>Aliança — DNS protegido</string>
+      <key>DNSSettings</key>
+      <dict>
+        <key>DNSProtocol</key>
+        <string>HTTPS</string>
+        <key>ServerURL</key>
+        <string>https://dns.xn--aliana-0ua.app/dns-query</string>
+        <key>ServerAddresses</key>
+        <array>
+          <string>168.75.71.223</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadIdentifier</key>
+  <string>app.alianca.profile</string>
+  <key>PayloadUUID</key>
+  <string>bde15502-4fd1-4130-8ab3-23a974825432</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadDisplayName</key>
+  <string>Aliança — Proteção da família</string>
+  <key>PayloadDescription</key>
+  <string>Configura o iPhone para usar o DNS protegido do Aliança. Bloqueia conteúdo adulto no Wi-Fi e nos dados móveis.</string>
+  <key>PayloadOrganization</key>
+  <string>Aliança</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+</dict>
+</plist>

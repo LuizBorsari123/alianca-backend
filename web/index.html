@@ -110,6 +110,8 @@ const S = {
   get token(){return localStorage.getItem('token')}, set token(v){v?localStorage.setItem('token',v):localStorage.removeItem('token')},
   get genero(){return localStorage.getItem('genero')||'ele'}, set genero(v){localStorage.setItem('genero',v)},
   get tema(){return localStorage.getItem('tema')||'claro'}, set tema(v){localStorage.setItem('tema',v)},
+  get setupDns(){return localStorage.getItem('setupDns')==='1'}, set setupDns(v){localStorage.setItem('setupDns',v?'1':'0')},
+  get setupTempoUso(){return localStorage.getItem('setupTempoUso')==='1'}, set setupTempoUso(v){localStorage.setItem('setupTempoUso',v?'1':'0')},
 };
 function applyTheme(){
   const r=document.documentElement;
@@ -217,6 +219,11 @@ async function telaHome(){
   } else {
     const prot=aps.find(a=>a.donoId===usuario.id);
     const st=prot?prot.status:'offline';
+    // Atalho de instalação (iPhone) quando ainda falta algum passo.
+    const falta=setupPendentes();
+    if(falta>0){
+      h+=`<div class="card hero warn"><span class="label">Falta pouco</span><p class="big">Complete sua proteção</p><p>Faltam ${falta} passo(s) pra deixar o iPhone totalmente protegido.</p><button class="btn primary" onclick="nav('setup')">Continuar instalação</button></div>`;
+    }
     h+=`<div class="card hero ${st==='protegido'?'':'warn'}"><span class="label">Sua proteção</span><p class="big">${st==='protegido'?'Protegido e caminhando':'Proteção do iPhone'}</p><p>No iPhone, a proteção é o <b>perfil de DNS</b> que você instalou (bloqueia no Wi-Fi e nos dados). ${nomeGua?('Guardião(ã): '+esc(nomeGua)+'.'):''}</p></div>`;
     h+=caminhada(j,false);
     h+=blocoConvite(familia);
@@ -247,7 +254,9 @@ function cardAparelhos(aps,meuId){
 }
 function blocoConvite(familia){
   if(familia.temGuardiao) return '';
-  return `<div class="card"><span class="label">Seu guardião</span><p>Convide seu cônjuge para caminhar com você — ele recebe os avisos.</p><button class="btn soft" onclick="gerarCodigo()">Convidar meu cônjuge</button><div id="codebox"></div></div>`;
+  return `<div class="card"><span class="label">Passo 2 (quando quiser)</span>
+    <p class="ink"><b>Você já está protegido.</b> Convidar seu cônjuge é opcional agora — mas é o coração do Aliança: ele passa a te acompanhar e recebe os avisos (nunca os sites). Vocês dois se protegem, um sendo guardião do outro.</p>
+    <button class="btn soft" onclick="gerarCodigo()">Convidar meu cônjuge</button><div id="codebox"></div></div>`;
 }
 async function gerarCodigo(){
   const nome=prompt('Nome do seu cônjuge:'); if(!nome) return;
@@ -299,6 +308,60 @@ async function telaConvite(){
 async function enviarConvite(){ const r=await api('/convite',{method:'POST',body:{}}); if(r.ok) telaConvite(); else alert(r.erro); }
 async function responder(aceita){ const q=aceita?(val('q')||'em breve'):''; const r=await api('/convite/responder',{method:'POST',body:{aceita,quando:q}}); if(r.ok) telaConvite(); else alert(r.erro); }
 
+// Quantos passos do iPhone faltam (para mostrar/ocultar o atalho de setup).
+function setupPendentes(){
+  if(!ehIOS()) return 0;
+  let n=0;
+  if(!ehStandalone()) n++;
+  if(!S.setupDns) n++;
+  if(!S.setupTempoUso) n++;
+  if(!(suportaPush() && Notification.permission==='granted')) n++;
+  return n;
+}
+function passoHTML(num,ok,titulo,corpo,acaoHtml){
+  const marca = ok?'<span class="pill ok">Feito</span>':`<span class="pill wait">Passo ${num}</span>`;
+  return `<div class="card"><div class="row"><strong>${titulo}</strong>${marca}</div>
+    <p class="ink">${corpo}</p>${ok?'':(acaoHtml||'')}</div>`;
+}
+function telaSetup(){
+  const instalado=ehStandalone();
+  const avisosOk=suportaPush() && Notification.permission==='granted';
+  let h=`<div class="top">${brand}<span class="who">Instalação</span></div>
+  <div class="card hero"><span class="label">Deixe a proteção completa</span><p class="big">Quatro passos rápidos</p>
+    <p class="ink">Siga na ordem. Cada passo mostra <b>Feito</b> quando estiver certo.</p></div>`;
+
+  // Passo 1 — instalar na tela de início
+  h+=passoHTML(1,instalado,'Instalar o app na tela',
+    instalado?'Pronto — você já está com o app instalado.'
+    :'Toque em <b>Compartilhar</b> (quadrado com seta pra cima) e depois em <b>"Adicionar à Tela de Início"</b>. Depois abra o Aliança pelo ícone novo e volte aqui.','');
+
+  // Passo 2 — perfil de DNS
+  h+=passoHTML(2,S.setupDns,'Instalar o bloqueio (perfil de DNS)',
+    S.setupDns?'Perfil de DNS marcado como instalado.'
+    :'Baixe o perfil e, em <b>Ajustes</b>, toque em <b>"Perfil Baixado"</b> → <b>Instalar</b>. Ele bloqueia conteúdo adulto no Wi-Fi e nos dados.',
+    `<a class="btn primary" href="/perfil-dns.mobileconfig" style="display:block;text-align:center;text-decoration:none">Baixar o perfil</a>
+     <button class="btn ghost" onclick="S.setupDns=true;telaSetup()">Já instalei o perfil</button>`);
+
+  // Passo 3 — Tempo de Uso (blindagem)
+  h+=passoHTML(3,S.setupTempoUso,'Blindar com o Tempo de Uso',
+    S.setupTempoUso?'Blindagem marcada como feita.'
+    :'O cônjuge cria um código do Tempo de Uso e liga o filtro da Apple. Assim ninguém desliga a proteção sem ele.',
+    `<button class="btn accent" onclick="nav('blindagem')">Ver o passo a passo</button>
+     <button class="btn ghost" onclick="S.setupTempoUso=true;telaSetup()">Já fiz a blindagem</button>`);
+
+  // Passo 4 — avisos
+  h+=passoHTML(4,avisosOk,'Ativar os avisos',
+    avisosOk?'Avisos ativados — o cônjuge será avisado se a proteção cair.'
+    :(instalado?'Toque para permitir as notificações.':'Primeiro conclua o Passo 1 (instalar na tela). Os avisos só funcionam com o app instalado.'),
+    instalado?`<button class="btn accent" id="setBtnNotif">Ativar avisos</button>`:'');
+
+  const falta=setupPendentes();
+  h+=`<div class="card"><p class="ink">${falta===0?'Tudo pronto! Sua proteção está completa. 🎉':('Faltam '+falta+' passo(s).')}</p>
+    <button class="btn ${falta===0?'primary':'soft'}" onclick="nav('home')">${falta===0?'Concluir':'Continuar depois'}</button></div>`;
+  app.innerHTML=h;
+  const bn=document.getElementById('setBtnNotif'); if(bn) bn.onclick=async()=>{ bn.textContent='Ativando…'; await ativarNotificacoes(true); telaSetup(); };
+}
+
 function telaBlindagem(){
   const h=`<div class="top">${brand}<span class="who">Blindagem do iPhone</span></div>
   <div class="card hero"><span class="label">Proteção forte no iPhone</span><p class="big">A chave fica com o cônjuge</p>
@@ -329,7 +392,10 @@ async function telaPerfil(){
   app.innerHTML=`<div class="top">${brand}<span class="who">Perfil</span></div><p>carregando…</p>`;
   const [me,sub]=await Promise.all([api('/me'),api('/subscription')]);
   const u=me.data.usuario||{}, fam=me.data.familia||{};
-  const estado=sub.ok?(sub.data.assinatura?.estado||''):'';
+  const ass=sub.ok?(sub.data.assinatura||{}):{};
+  const estado=ass.estado||'';
+  const renovaOff=ass.renova===false;
+  const protegidoAte=ass.vigenteAte||ass.protecaoAte||null;
   const temPin=!!fam.temPin;
   let h=`<div class="top">${brand}<span class="who">Perfil</span></div>
   <div class="card"><div class="row"><div class="dev"><strong style="font-size:1.05rem">${esc(u.nome||'Você')}</strong><span>${esc(u.email||'')}</span></div></div></div>
@@ -338,9 +404,17 @@ async function telaPerfil(){
     <button data-t="claro" aria-pressed="${S.tema==='claro'}">Claro</button>
     <button data-t="escuro" aria-pressed="${S.tema==='escuro'}">Escuro</button></div></div>
   <div class="card"><span class="label">Assinatura</span><div class="row"><strong>${({ativa:'Proteção garantida',pendente:'Aguardando pagamento',vencida:'Pagamento em atraso',cancelada:'Cancelada'})[estado]||'—'}</strong><span class="pill ${estado==='ativa'?'ok':'wait'}">${estado==='ativa'?'Ativa':'Pendente'}</span></div></div>`;
+  // Gerenciar cobrança — FÁCIL e sem PIN (encerrar a renovação). Diferente de
+  // tirar a proteção, que é o fluxo com PIN do cônjuge.
+  if(renovaOff){
+    h+=`<div class="card"><span class="label">Cobrança</span><p class="ink">A renovação está <b>encerrada</b>. Você não será cobrado de novo${protegidoAte?` e a proteção segue até <b>${fmtData(protegidoAte)}</b>`:''}.</p><button class="btn ghost" onclick="reativarCobranca()">Voltar a assinar</button></div>`;
+  } else if(estado==='ativa'||estado==='pendente'||estado==='vencida'){
+    h+=`<div class="card"><span class="label">Cobrança</span><p class="ink">Quer parar de pagar? O cancelamento é imediato e sem burocracia. A <b>proteção continua</b> até o fim do período já pago${protegidoAte?` (${fmtData(protegidoAte)})`:''}.</p><button class="btn ghost" onclick="encerrarCobranca()">Encerrar cobrança</button></div>`;
+  }
   h+=cartaoAvisosHTML();
   if(!temPin){ h+=`<div class="card"><span class="label">PIN de proteção</span><p class="ink">Defina um PIN de 4 dígitos (idealmente o cônjuge digita). Depois, só com ele se sai da conta.</p><div class="field"><input id="pin" inputmode="numeric" maxlength="4" placeholder="••••"></div><button class="btn accent" onclick="salvarPin()">Salvar PIN</button></div>`; }
   h+=`<div class="card"><div class="item" onclick="nav('jornada')"><div><strong>Dias firmes</strong><small>Sua caminhada e marcos</small></div><span class="chev">›</span></div></div>`;
+  if(ehIOS()){ h+=`<div class="card"><div class="item" onclick="nav('setup')"><div><strong>Instalação no iPhone</strong><small>Concluir os 4 passos da proteção</small></div><span class="chev">›</span></div></div>`; }
   h+=`<div class="card"><div class="item" onclick="nav('blindagem')"><div><strong>Blindagem do iPhone</strong><small>Deixar a proteção forte no iPhone</small></div><span class="chev">›</span></div></div>`;
   h+=`<div class="card"><span class="label">Sair da conta</span><p class="ink">Sair exige o PIN do cônjuge.</p><div class="field"><input id="lo" inputmode="numeric" maxlength="4" placeholder="PIN do cônjuge"></div><button class="btn danger" onclick="sair()">Sair da conta</button></div>`;
   h+=`<button class="back" onclick="nav('home')">‹ Voltar</button>`;
@@ -374,6 +448,16 @@ function cartaoAvisosHTML(){
   return L+`<p class="ink">Ative para ser avisado quando a proteção mudar — mesmo com o app fechado.</p>
     <button class="btn accent" id="btnAtivarNotif">Ativar avisos</button></div>`;
 }
+async function encerrarCobranca(){
+  if(!confirm('Encerrar a cobrança? Você não será cobrado de novo. A proteção continua até o fim do período já pago.')) return;
+  const r=await api('/subscription/encerrar-cobranca',{method:'POST',body:{}});
+  if(r.ok){ alert('Cobrança encerrada. Sem novas cobranças.'+(r.data.protegidoAte?(' Proteção até '+fmtData(r.data.protegidoAte)+'.'):'')); telaPerfil(); }
+  else alert(r.erro||'Não foi possível agora.');
+}
+async function reativarCobranca(){
+  const r=await api('/subscription/reativar-cobranca',{method:'POST',body:{}});
+  if(r.ok) telaPerfil(); else alert(r.erro);
+}
 async function salvarPin(){ const r=await api('/household/pin',{method:'POST',body:{pin:val('pin')}}); if(r.ok) telaPerfil(); else alert(r.erro); }
 async function sair(){ const r=await api('/auth/logout',{method:'POST',body:{pin:val('lo')}}); if(r.ok){ S.token=null; tela='home'; render(); } else alert(r.erro); }
 
@@ -390,6 +474,7 @@ function render(){
   if(tela==='jornada') return telaJornada();
   if(tela==='convite') return telaConvite();
   if(tela==='blindagem') return telaBlindagem();
+  if(tela==='setup') return telaSetup();
   if(tela==='perfil') return telaPerfil();
   return telaHome();
 }

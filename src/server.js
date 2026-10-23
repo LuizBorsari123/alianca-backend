@@ -24,6 +24,14 @@ export function criaApp() {
 
   app.get('/health', (_req, res) => res.json({ app: 'Aliança', partes: '1–5', ok: true }));
 
+  // Perfil de DNS para iPhone — precisa do content-type certo para o Safari
+  // oferecer "Instalar" em vez de baixar um arquivo solto.
+  app.get('/perfil-dns.mobileconfig', (_req, res) => {
+    res.type('application/x-apple-aspen-config');
+    res.set('Content-Disposition', 'attachment; filename="Alianca-Protecao.mobileconfig"');
+    res.sendFile(join(__dirname, '..', 'web', 'perfil-dns.mobileconfig'));
+  });
+
   // ---- Cadastro do titular: cria usuário, família, assinatura e inicia a caminhada ----
   app.post('/auth/signup', (req, res) => {
     const { nome, email, senha, genero, plano } = req.body || {};

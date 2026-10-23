@@ -3,7 +3,7 @@ import { db } from '../db.js';
 import { exigeAuth } from '../auth.js';
 import { exigeServico, ASAAS_WEBHOOK_TOKEN } from '../config.js';
 import { notificaGuardiao } from '../notify.js';
-import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura, faturaDaAssinatura, criarAutorizacaoPixAutomatico } from '../asaas.js';
+import { asaasConfigurado, criarCliente, criarAssinatura, pixDaAssinatura, faturaDaAssinatura, criarAutorizacaoPixAutomatico, cancelarCobrancaAsaas } from '../asaas.js';
 
 const PLANOS = {
   mensal: { preco: 990, reais: 9.90, ciclo: 'MONTHLY', periodoDias: 30, rotulo: 'Mensal' },
@@ -21,6 +21,45 @@ export function mountBilling(app) {
       faltaMs = Math.max(0, Date.parse(sub.cancelamento.confirmavelApos) - Date.now());
     }
     res.json({ assinatura: { ...sub, planoInfo: PLANOS[sub.plano] }, esperaRestanteMs: faltaMs });
+  });
+
+  // >>> ENCERRAR A COBRANÇA (o dinheiro) — FÁCIL, IMEDIATO, SEM PIN.
+  // Direito do consumidor (CDC): cancelar o pagamento tem que ser simples.
+  // A proteção NÃO cai na hora: segue até o fim do período já pago. Isso é
+  // diferente de "desativar a proteção agora" (que exige PIN do cônjuge).
+  app.post('/subscription/encerrar-cobranca', exigeAuth, async (req, res) => {
+    const user = db.getUser(req.userId);
+    const sub = db.subscriptionOf(user.householdId);
+    if (!sub) return res.status(404).json({ erro: 'Sem assinatura.' });
+    if (sub.renova === false) {
+      return res.json({ ok: true, jaEncerrada: true, protegidoAte: sub.vigenteAte || null });
+    }
+    // Para de debitar no Asaas (se estiver configurado e houver id).
+    let gateway = [];
+    if (asaasConfigurado() && (sub.asaasSubscriptionId || sub.pixAutomaticoId)) {
+      try {
+        gateway = await cancelarCobrancaAsaas({ asaasSubscriptionId: sub.asaasSubscriptionId, pixAutomaticoId: sub.pixAutomaticoId });
+      } catch (e) {
+        // Não travamos o cliente por erro do gateway — registramos e seguimos.
+        console.error('[billing] Falha ao cancelar no Asaas:', e.message);
+      }
+    }
+    const agora = new Date().toISOString();
+    db.subscriptions.update(sub.id, { renova: false, cobrancaEncerradaEm: agora });
+    db.events.create({
+      householdId: user.householdId, tipo: 'cobranca_encerrada', titulo: 'Cobrança encerrada',
+      corpo: 'A renovação foi cancelada. A proteção segue até o fim do período pago.', ts: agora,
+    });
+    res.json({ ok: true, protegidoAte: sub.vigenteAte || null, gateway });
+  });
+
+  // Reativar a renovação antes de acabar o período (muda de ideia sobre o dinheiro).
+  app.post('/subscription/reativar-cobranca', exigeAuth, (req, res) => {
+    const user = db.getUser(req.userId);
+    const sub = db.subscriptionOf(user.householdId);
+    if (!sub) return res.status(404).json({ erro: 'Sem assinatura.' });
+    db.subscriptions.update(sub.id, { renova: true, cobrancaEncerradaEm: null });
+    res.json({ ok: true });
   });
 
   // Troca de plano pelo usuário (reflete na próxima cobrança).

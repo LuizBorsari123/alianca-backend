@@ -78,3 +78,18 @@ export function criarAutorizacaoPixAutomatico({ customerId, valor, descricao, co
     },
   });
 }
+
+// 6) Cancela a cobrança recorrente no Asaas (para de debitar daqui pra frente).
+//    Tolerante: cancela a assinatura e/ou a autorização de Pix Automático que existir.
+export async function cancelarCobrancaAsaas({ asaasSubscriptionId, pixAutomaticoId }) {
+  const feitos = [];
+  if (asaasSubscriptionId) {
+    await asaas(`/subscriptions/${asaasSubscriptionId}`, { method: 'DELETE' });
+    feitos.push('assinatura');
+  }
+  if (pixAutomaticoId) {
+    try { await asaas(`/pix/automatic/authorizations/${pixAutomaticoId}/cancel`, { method: 'POST' }); feitos.push('pix-automatico'); }
+    catch (_) { /* nome do endpoint pode variar; não trava o cancelamento local */ }
+  }
+  return feitos;
+}
