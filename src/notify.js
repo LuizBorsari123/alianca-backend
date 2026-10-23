@@ -38,3 +38,13 @@ export function notificaGuardiao(householdId, payload) {
   const guardiao = db.guardiaoDe(householdId);
   return guardiao ? notificaUsuario(guardiao.id, payload) : null;
 }
+
+// Proteção MÚTUA: avisa o(s) parceiro(s) da casa — todo mundo menos quem agiu.
+// Em uma casa de 2 (titular + guardião, ambos protegidos), isso faz o alerta
+// ir para o cônjuge certo, não para quem mexeu no próprio aparelho.
+export function notificaParceiros(householdId, exceptUserId, payload) {
+  const membros = db.membersOf(householdId).filter(
+    u => u.id !== exceptUserId && (u.papel === 'titular' || u.papel === 'guardiao')
+  );
+  return membros.map(m => notificaUsuario(m.id, payload));
+}

@@ -2,7 +2,7 @@
 import { db } from '../db.js';
 import { exigeAuth } from '../auth.js';
 import { exigeServico, JANELA_REMOCAO_MS } from '../config.js';
-import { notificaGuardiao } from '../notify.js';
+import { notificaParceiros } from '../notify.js';
 
 const publicoDevice = x => x && ({
   id: x.id, nome: x.nome, plataforma: x.plataforma, dnsId: x.dnsId,
@@ -70,8 +70,9 @@ export function mountDevices(app) {
         tipo: 'tentativa', titulo: 'Tentativa bloqueada',
         corpo: `${categoria} · ${device.nome}`, ts: agora,
       });
-      // avisa o guardião só com categoria e horário — NUNCA o endereço do site
-      notificaGuardiao(device.householdId, {
+      // avisa o PARCEIRO (não quem usou o aparelho) — só categoria e horário,
+      // NUNCA o endereço do site.
+      notificaParceiros(device.householdId, device.donoId, {
         tipo: 'tentativa', titulo: 'Tentativa bloqueada',
         corpo: `${device.nome} · ${categoria} · ${new Date(agora).toLocaleTimeString('pt-BR')}`,
       });
@@ -98,7 +99,8 @@ export function mountDevices(app) {
       householdId, tipo: 'tentativa', titulo: 'Tentativa bloqueada',
       corpo: `${categoria} · ${new Date(agora).toLocaleTimeString('pt-BR')}`, ts: agora,
     });
-    notificaGuardiao(householdId, {
+    // Bloqueio em nível de família (sem saber o aparelho): avisa todos da casa.
+    notificaParceiros(householdId, null, {
       tipo: 'tentativa', titulo: 'Tentativa bloqueada',
       corpo: `${categoria} · ${new Date(agora).toLocaleTimeString('pt-BR')}`,
     });
@@ -127,7 +129,7 @@ export function mountDevices(app) {
         householdId: user.householdId, deviceId: device.id, tipo: 'protecao_off',
         titulo: 'Proteção desativada', corpo: `${user.nome} desativou a proteção.`, ts: agora,
       });
-      notificaGuardiao(user.householdId, {
+      notificaParceiros(user.householdId, user.id, {
         tipo: 'protecao_off', titulo: 'Proteção desativada',
         corpo: `${user.nome} desativou a proteção há pouco. Que tal conversar com carinho?`,
       });
@@ -170,7 +172,7 @@ export function mountDevices(app) {
           corpo: `${device.nome} · filtro parou com o celular ligado`,
           ts: new Date(agora).toISOString(),
         });
-        notificaGuardiao(device.householdId, {
+        notificaParceiros(device.householdId, device.donoId, {
           tipo: 'remocao', titulo: 'Proteção removida',
           corpo: `${device.nome} saiu da proteção. O celular segue ligado.`,
         });
