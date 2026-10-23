@@ -299,6 +299,32 @@ async function telaConvite(){
 async function enviarConvite(){ const r=await api('/convite',{method:'POST',body:{}}); if(r.ok) telaConvite(); else alert(r.erro); }
 async function responder(aceita){ const q=aceita?(val('q')||'em breve'):''; const r=await api('/convite/responder',{method:'POST',body:{aceita,quando:q}}); if(r.ok) telaConvite(); else alert(r.erro); }
 
+function telaBlindagem(){
+  const h=`<div class="top">${brand}<span class="who">Blindagem do iPhone</span></div>
+  <div class="card hero"><span class="label">Proteção forte no iPhone</span><p class="big">A chave fica com o cônjuge</p>
+    <p class="ink">O iPhone não deixa um app travar o sistema. A blindagem real é o próprio <b>Tempo de Uso</b> da Apple, com a senha na mão do seu cônjuge — assim você não consegue desligar o filtro sozinho.</p></div>
+
+  <div class="card"><span class="label">Parte 1 · Filtro da Apple (o cônjuge faz)</span>
+    <p class="ink">1. Ajustes → <b>Tempo de Uso</b>.<br>
+    2. Role até <b>"Usar código do Tempo de Uso"</b> e crie um código de 4 dígitos. <b>Quem digita é o cônjuge</b> — o dono do iPhone não pode saber.<br>
+    3. <b>Conteúdo e Privacidade</b> → ligue <b>Restrições de Conteúdo e Privacidade</b>.<br>
+    4. <b>Restrições de Conteúdo</b> → <b>Conteúdo Web</b> → marque <b>"Limitar sites adultos"</b>.</p></div>
+
+  <div class="card"><span class="label">Parte 2 · Travar mudanças</span>
+    <p class="ink">Ainda em <b>Conteúdo e Privacidade</b>, em <b>"Permitir alterações"</b>, marque <b>"Não permitir"</b> em:<br>
+    • <b>Alterações de conta</b><br>• <b>VPN e DNS</b> (quando aparecer)<br>• <b>Alterações de código</b><br>
+    Assim o filtro e as configurações ficam presos atrás do código do cônjuge.</p></div>
+
+  <div class="card"><span class="label">Parte 3 · Camada do Aliança</span>
+    <p class="ink">Instale também o <b>perfil de DNS do Aliança</b> (o arquivo que você recebeu). Ele reforça o bloqueio dentro de apps e no navegador. Se um dia ele for removido, <b>seu cônjuge é avisado</b> automaticamente.</p></div>
+
+  <div class="card"><span class="label">Importante, com honestidade</span>
+    <p class="ink">Essa é a proteção máxima para um iPhone comum. A única forma de deixar o perfil <b>impossível</b> de remover (como no Android) seria apagar e supervisionar o aparelho por um Mac — coisa de empresa, não recomendada aqui. Com o Tempo de Uso + a senha no cônjuge, na prática ninguém desliga sozinho.</p></div>
+
+  <button class="back" onclick="nav('perfil')">‹ Voltar</button>`;
+  app.innerHTML=h;
+}
+
 async function telaPerfil(){
   app.innerHTML=`<div class="top">${brand}<span class="who">Perfil</span></div><p>carregando…</p>`;
   const [me,sub]=await Promise.all([api('/me'),api('/subscription')]);
@@ -315,6 +341,7 @@ async function telaPerfil(){
   h+=cartaoAvisosHTML();
   if(!temPin){ h+=`<div class="card"><span class="label">PIN de proteção</span><p class="ink">Defina um PIN de 4 dígitos (idealmente o cônjuge digita). Depois, só com ele se sai da conta.</p><div class="field"><input id="pin" inputmode="numeric" maxlength="4" placeholder="••••"></div><button class="btn accent" onclick="salvarPin()">Salvar PIN</button></div>`; }
   h+=`<div class="card"><div class="item" onclick="nav('jornada')"><div><strong>Dias firmes</strong><small>Sua caminhada e marcos</small></div><span class="chev">›</span></div></div>`;
+  h+=`<div class="card"><div class="item" onclick="nav('blindagem')"><div><strong>Blindagem do iPhone</strong><small>Deixar a proteção forte no iPhone</small></div><span class="chev">›</span></div></div>`;
   h+=`<div class="card"><span class="label">Sair da conta</span><p class="ink">Sair exige o PIN do cônjuge.</p><div class="field"><input id="lo" inputmode="numeric" maxlength="4" placeholder="PIN do cônjuge"></div><button class="btn danger" onclick="sair()">Sair da conta</button></div>`;
   h+=`<button class="back" onclick="nav('home')">‹ Voltar</button>`;
   app.innerHTML=h;
@@ -362,6 +389,7 @@ function render(){
   if(tela==='avisos') return telaAvisos();
   if(tela==='jornada') return telaJornada();
   if(tela==='convite') return telaConvite();
+  if(tela==='blindagem') return telaBlindagem();
   if(tela==='perfil') return telaPerfil();
   return telaHome();
 }
